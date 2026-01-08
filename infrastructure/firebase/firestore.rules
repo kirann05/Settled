@@ -1,0 +1,100 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions for authentication and data validation
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+    
+    function isValidBillParticipant(billData) {
+      return request.auth.uid in billData.participantIds;
+    }
+    
+    function isValidUserData() {
+      return request.resource.data.keys().hasAll(['email', 'displayName']) &&
+             request.resource.data.email is string &&
+             request.resource.data.displayName is string;
+    }
+    
+    // Users collection - private user data
+    match /users/{userId} {
+      // Read: User can read their own data, any authenticated user can read for lookups
+      allow read: if isAuthenticated();
+
+      // Write: Only owner can write, must have valid user data
+      allow write: if isAuthenticated() && isOwner(userId) && isValidUserData();
+
+      // Bill Activities subcollection - user's bill activity history
+      match /billActivities/{activityId} {
+        // Read: User can read their own bill activities
+        allow read: if isAuthenticated() && isOwner(userId);
+
+        // Write: Bill creators can write activities for all bill participants
+        // The actor (bill creator) can write to any participant's billActivities subcollection
+        // when creating/editing/deleting bills
+        allow write: if isAuthenticated() &&
+                        request.auth.token.email in request.resource.data.participantEmails;
+      }
+
+      // Transaction Contacts subcollection - user's network/contact list
+      match /transactionContacts/{contactId} {
+        // Read: User can read their own transaction contacts
+        allow read: if isAuthenticated() && isOwner(userId);
+
+        // Write: User can manage their own transaction contacts
+        allow write: if isAuthenticated() && isOwner(userId);
+      }
+    }
+    
+    // Participants collection - public user lookup (read-only for participants)
+    match /participants/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && isOwner(userId);
+    }
+    
+    // Bills collection - collaborative bill data
+    match /bills/{billId} {
+      // Read access: Any authenticated participant in the bill
+      // Note: App code filters deleted bills in queries; security only controls WHO can access
+      allow read: if isAuthenticated() &&
+                     isValidBillParticipant(resource.data);
+      
+      // Create access: Any authenticated user (becomes bill creator)
+      allow create: if isAuthenticated() && 
+                       request.auth.uid == request.resource.data.createdBy &&
+                       request.resource.data.isDeleted == false &&
+                       request.auth.uid in request.resource.data.participantIds;
+      
+      // Update access: Only bill creator can edit
+      allow update: if isAuthenticated() && 
+                       request.auth.uid == resource.data.createdBy &&
+                       isValidBillParticipant(resource.data) &&
+                       // Prevent changing critical fields
+                       request.resource.data.createdBy == resource.data.createdBy &&
+                       request.resource.data.id == resource.data.id;
+      
+      // Delete access: Only bill creator (soft delete by setting isDeleted = true)
+      allow update: if isAuthenticated() &&
+                       request.auth.uid == resource.data.createdBy &&
+                       request.resource.data.isDeleted == true &&
+                       // Allow deletion metadata fields to be updated
+                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isDeleted', 'deletedBy', 'deletedByDisplayName', 'deletedAt', 'lastModified', 'version', 'operationId']);
+    }
+    
+    // Groups collection (future feature)
+    match /groups/{groupId} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    // Deny all other access
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

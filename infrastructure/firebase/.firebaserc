@@ -1,0 +1,9 @@
+{
+  "projects": {
+    "dev": "settledapp-bd116",
+    "staging": "settled-staging", 
+    "prod": "settled-prod"
+  },
+  "targets": {},
+  "etags": {}
+}

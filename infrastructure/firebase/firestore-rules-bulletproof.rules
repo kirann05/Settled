@@ -1,0 +1,123 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions for authentication and data validation
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+    
+    // BULLETPROOF: Handles all edge cases for bill participant validation
+    function isValidBillParticipant(billData) {
+      // Safely get user identifiers
+      let userEmail = request.auth != null && request.auth.token != null ? request.auth.token.email : null;
+      let userUid = request.auth != null ? request.auth.uid : null;
+      
+      // Safe UID check: field exists, is array, contains UID
+      let uidMatch = userUid != null && 
+                     'participantIds' in billData && 
+                     billData.participantIds is list && 
+                     userUid in billData.participantIds;
+      
+      // Safe email check: field exists, is array, contains email
+      let emailMatch = userEmail != null && 
+                       'participantEmails' in billData && 
+                       billData.participantEmails is list && 
+                       userEmail in billData.participantEmails;
+      
+      return uidMatch || emailMatch;
+    }
+    
+    // BULLETPROOF: Safe deletion check
+    function isNotDeleted(data) {
+      // Allow access if: isDeleted doesn't exist OR isDeleted is explicitly false
+      return !('isDeleted' in data) || data.isDeleted != true;
+    }
+    
+    function isValidUserData() {
+      return request.resource.data.keys().hasAll(['email', 'displayName']) &&
+             request.resource.data.email is string &&
+             request.resource.data.displayName is string;
+    }
+    
+    // Users collection - private user data
+    match /users/{userId} {
+      allow read, write: if isAuthenticated() && isOwner(userId);
+      
+      // Subcollection: transaction contacts
+      match /transactionContacts/{contactId} {
+        allow read, write: if isAuthenticated() && isOwner(userId);
+      }
+    }
+    
+    // Participants collection - public user lookup (read-only for participants)
+    match /participants/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && isOwner(userId);
+    }
+    
+    // Bills collection - collaborative bill data
+    match /bills/{billId} {
+      // BULLETPROOF read access: Any authenticated participant in the bill
+      allow read: if isAuthenticated() && 
+                     isValidBillParticipant(resource.data) &&
+                     isNotDeleted(resource.data);
+      
+      // Create access: Any authenticated user (becomes bill creator)
+      allow create: if isAuthenticated() && 
+                       request.auth.uid == request.resource.data.createdBy &&
+                       isNotDeleted(request.resource.data) &&
+                       request.auth.uid in request.resource.data.participantIds;
+      
+      // Update access: Only bill creator can edit
+      allow update: if isAuthenticated() && 
+                       request.auth.uid == resource.data.createdBy &&
+                       isValidBillParticipant(resource.data) &&
+                       // Prevent changing critical fields
+                       request.resource.data.createdBy == resource.data.createdBy &&
+                       request.resource.data.id == resource.data.id;
+      
+      // Delete access: Only bill creator (soft delete by setting isDeleted = true)
+      allow update: if isAuthenticated() && 
+                       request.auth.uid == resource.data.createdBy &&
+                       request.resource.data.isDeleted == true &&
+                       // Ensure other fields remain unchanged during deletion
+                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isDeleted', 'lastModified']);
+    }
+    
+    // Bill Activities collection - activity tracking for real-time updates
+    match /billActivities/{activityId} {
+      // BULLETPROOF read access: Safe email check in participantEmails array
+      allow read: if isAuthenticated() && 
+                     request.auth.token != null &&
+                     request.auth.token.email != null &&
+                     'participantEmails' in resource.data &&
+                     resource.data.participantEmails is list &&
+                     request.auth.token.email in resource.data.participantEmails;
+      
+      // BULLETPROOF write access: Safe email validation for activities
+      allow create: if isAuthenticated() && 
+                       request.auth.token != null &&
+                       request.auth.token.email != null &&
+                       'participantEmails' in request.resource.data &&
+                       request.resource.data.participantEmails is list &&
+                       request.auth.token.email in request.resource.data.participantEmails &&
+                       request.auth.token.email == request.resource.data.actorEmail;
+    }
+    
+    // Groups collection (future feature)
+    match /groups/{groupId} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    // Deny all other access
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

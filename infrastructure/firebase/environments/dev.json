@@ -1,0 +1,30 @@
+{
+  "projectId": "settledapp-bd116",
+  "storageBucket": "settled-dev.appspot.com",
+  "locationId": "us-central1",
+  "configuration": {
+    "emulators": {
+      "enabled": true,
+      "ports": {
+        "auth": 9099,
+        "firestore": 8080,
+        "functions": 5001,
+        "hosting": 5000
+      }
+    },
+    "firestore": {
+      "deleteProtection": false,
+      "pointInTimeRecoveryEnablement": "POINT_IN_TIME_RECOVERY_DISABLED"
+    },
+    "functions": {
+      "runtime": "nodejs18",
+      "region": "us-central1"
+    },
+    "security": {
+      "appCheckEnforcement": "UNENFORCED"
+    },
+    "logging": {
+      "level": "DEBUG"
+    }
+  }
+}

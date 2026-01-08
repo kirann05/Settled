@@ -1,0 +1,39 @@
+{
+  "projectId": "settled-prod",
+  "storageBucket": "settled-prod.appspot.com",
+  "locationId": "us-central1", 
+  "configuration": {
+    "emulators": {
+      "enabled": false
+    },
+    "firestore": {
+      "deleteProtection": true,
+      "pointInTimeRecoveryEnablement": "POINT_IN_TIME_RECOVERY_ENABLED",
+      "backupSchedule": "DAILY"
+    },
+    "functions": {
+      "runtime": "nodejs18",
+      "region": "us-central1",
+      "timeout": "60s",
+      "memory": "512MB",
+      "concurrency": 80
+    },
+    "security": {
+      "appCheckEnforcement": "ENFORCED",
+      "securityRulesCanary": false
+    },
+    "logging": {
+      "level": "WARN"
+    },
+    "monitoring": {
+      "performanceMonitoring": true,
+      "crashlytics": true,
+      "alerting": true
+    },
+    "quotas": {
+      "firestoreReads": 1000000,
+      "firestoreWrites": 200000,
+      "functionInvocations": 125000
+    }
+  }
+}

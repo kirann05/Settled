@@ -1,0 +1,30 @@
+{
+  "projectId": "settled-staging",
+  "storageBucket": "settled-staging.appspot.com", 
+  "locationId": "us-central1",
+  "configuration": {
+    "emulators": {
+      "enabled": false
+    },
+    "firestore": {
+      "deleteProtection": true,
+      "pointInTimeRecoveryEnablement": "POINT_IN_TIME_RECOVERY_ENABLED"
+    },
+    "functions": {
+      "runtime": "nodejs18",
+      "region": "us-central1",
+      "timeout": "60s",
+      "memory": "256MB"
+    },
+    "security": {
+      "appCheckEnforcement": "ENFORCED"
+    },
+    "logging": {
+      "level": "INFO"
+    },
+    "monitoring": {
+      "performanceMonitoring": true,
+      "crashlytics": true
+    }
+  }
+}
