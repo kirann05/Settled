@@ -168,12 +168,10 @@ CLAUDE.md
 *.original
 *_backup.swift
 
-# Markdown files - exclude all markdown files except README.md
-*.md
-*.md.backup
+# Markdown files (Allowed by default)
+# *.md
+# *.md.backup
 
-# Keep essential project documentation
-!README.md
 
 # Duplicate Firebase files (proper versions are in infrastructure/firebase/)
 /firebase.json
