@@ -53,7 +53,7 @@ A native iOS app built with SwiftUI for splitting bills and tracking expenses wi
 
 1. **Clone the repository**
    ```bash
-   git clone <repository-url>
+   git clone <https://github.com/kirann05/Settled.git>
    cd SettledApp
    ```
 
